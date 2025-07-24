@@ -118,9 +118,23 @@ class GradSampleModule(opacus.GradSampleModule):
     Little wrapper to provide `no_sync` context which is assumed by Huggingface trainer.
     We don't need to do anything in addition here
     """
+    def __init__(self, m: nn.Module, *args, **kwargs):
+        if not isinstance(m, nn.Module):
+            raise TypeError(f"Wrapped module must be nn.Module. Given: {type(m)}")
+        
+        super().__init__(m, *args, **kwargs)
+
     @contextmanager
     def no_sync(self):
         yield
+
+    def _create_or_extend_grad_sample(
+            self, param: torch.Tensor, grad_sample: torch.Tensor, batch_dim: int
+    ) -> None:
+        if hasattr(param, "grad_sample"):
+            param.grad_sample = torch.cat((param.grad_sample, grad_sample), batch_dim)
+        else:
+            param.grad_sample = grad_sample
 
 
 def create_author_mapping(dataset: Dataset, author: str) -> Sequence[Sequence[int]]:
@@ -170,9 +184,8 @@ class OpacusDPTrainer(Trainer):
         # Wrap model in DDP and GradSampleModule
         if args.parallel_mode == training_args.ParallelMode.DISTRIBUTED:
             logger.info(f"Wrapping the model with DPDDP in distributed training.")
-            model = opacus.distributed.DifferentiallyPrivateDistributedDataParallel(model)
-
-        model = GradSampleModule(model)
+            if not isinstance(model, opacus.distributed.DifferentiallyPrivateDistributedDataParallel):
+                model = opacus.distributed.DifferentiallyPrivateDistributedDataParallel(model)
 
         # Instantiate privacy accountants
         self.rdp_accountant = RDPAccountant()

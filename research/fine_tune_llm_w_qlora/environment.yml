@@ -44,7 +44,7 @@ dependencies:
   - openssl=3.0.10
   - pip=23.2.1
   - python=3.10.12
-  - pytorch=2.0.1
+  - pytorch=2.7.1
   - pytorch-cuda=11.8
   - pytorch-mutex=1.0
   - readline=8.2
@@ -120,7 +120,7 @@ dependencies:
       - numpy==1.25.2
       - nvidia-ml-py3==7.352.0
       - oauthlib==3.2.2
-      - opacus==1.4.0
+      - opacus==1.5.4
       - opt-einsum==3.3.0
       - packaging==23.1
       - pandas==2.0.3
