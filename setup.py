@@ -32,7 +32,7 @@ setup(
         "opacus>=1.5.4",
         "peft",
         "prv_accountant<0.2.0",
-        "torch>=2.7.1",
+        "torch>=2.6.0",
     ],
     test_suite="tests",
     zip_safe=False

@@ -44,7 +44,7 @@ dependencies:
   - openssl=3.0.10
   - pip=23.2.1
   - python=3.10.12
-  - pytorch=2.7.1
+  - pytorch=2.6.0
   - pytorch-cuda=11.8
   - pytorch-mutex=1.0
   - readline=8.2
