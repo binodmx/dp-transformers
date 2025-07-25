@@ -13,6 +13,7 @@ from transformers import (
 )
 from transformers.file_utils import is_sagemaker_mp_enabled, is_datasets_available
 import opacus
+from opacus import GradSampleModule
 from opacus.accountants import RDPAccountant
 from prv_accountant import Accountant as PRVAccountant
 from contextlib import contextmanager
@@ -103,38 +104,12 @@ class DataCollatorForPrivateCausalLanguageModeling(DataCollatorForLanguageModeli
 
         # Huggingface's default way of constructing position_ids is not compatible with Opacus
         # since Opacus is not able to deduce the batch size from the input. Here we manually
-        # generate a position_ids tensor which has the same values as Huggingface's default tensor
-        # but it is constructed in a way that is compatile with Opacus by using expand_as.
         if "position_ids" not in batch:
             input_ids = batch["input_ids"]
             batch["position_ids"] = torch.arange(
                 input_ids.shape[1], dtype=torch.long, device=input_ids.device
             ).repeat(input_ids.shape[0], 1)
         return batch
-
-
-class GradSampleModule(opacus.GradSampleModule):
-    """
-    Little wrapper to provide `no_sync` context which is assumed by Huggingface trainer.
-    We don't need to do anything in addition here
-    """
-    def __init__(self, m: nn.Module, *args, **kwargs):
-        if not isinstance(m, nn.Module):
-            raise TypeError(f"Wrapped module must be nn.Module. Given: {type(m)}")
-        
-        super().__init__(m, *args, **kwargs)
-
-    @contextmanager
-    def no_sync(self):
-        yield
-
-    def _create_or_extend_grad_sample(
-            self, param: torch.Tensor, grad_sample: torch.Tensor, batch_dim: int
-    ) -> None:
-        if hasattr(param, "grad_sample"):
-            param.grad_sample = torch.cat((param.grad_sample, grad_sample), batch_dim)
-        else:
-            param.grad_sample = grad_sample
 
 
 def create_author_mapping(dataset: Dataset, author: str) -> Sequence[Sequence[int]]:
@@ -186,6 +161,8 @@ class OpacusDPTrainer(Trainer):
             logger.info(f"Wrapping the model with DPDDP in distributed training.")
             if not isinstance(model, opacus.distributed.DifferentiallyPrivateDistributedDataParallel):
                 model = opacus.distributed.DifferentiallyPrivateDistributedDataParallel(model)
+        else:
+            model = GradSampleModule(model)
 
         # Instantiate privacy accountants
         self.rdp_accountant = RDPAccountant()
